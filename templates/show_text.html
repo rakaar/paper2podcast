@@ -1,0 +1,18 @@
+<!doctype html>
+<html>
+<head>
+    <title>Extracted PDF Text</title>
+    <style>
+        textarea { width: 100%; height: 300px; }
+    </style>
+</head>
+<body>
+    <h1>Extracted PDF Text</h1>
+    <form method="post" action="/continue">
+        <textarea readonly>{{ extracted_text[:1000] }}{% if extracted_text|length > 1000 %}... (truncated){% endif %}</textarea><br>
+        <input type="hidden" name="temp_txt_filename" value="{{ temp_txt_filename }}">
+        <button type="submit">Continue to Questions</button>
+    </form>
+    <a href="/">Upload a different PDF</a>
+</body>
+</html>

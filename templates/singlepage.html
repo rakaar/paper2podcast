@@ -1,0 +1,301 @@
+<!doctype html>
+<html>
+<head>
+    <title>Paper2Podcast</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;800&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(120deg, #e0eafc 0%, #cfdef3 100%);
+            margin: 0;
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+        .card {
+            background: rgba(255,255,255,0.82);
+            box-shadow: 0 4px 32px 0 rgba(60,72,88,0.13);
+            border-radius: 28px;
+            padding: 2.8rem 2.2rem 2.2rem 2.2rem;
+            margin: 40px auto 0 auto;
+            max-width: 540px;
+            backdrop-filter: blur(6px);
+            -webkit-backdrop-filter: blur(6px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+        h1 {
+            font-weight: 800;
+            font-size: 2.3rem;
+            color: #1ba57a;
+            letter-spacing: -1px;
+            margin-bottom: 0.7em;
+        }
+        label { font-weight: 600; color: #283046; }
+        #spinner { display: none; text-align: center; }
+        #spinner img { margin: 24px 0; }
+        #questions { display: none; }
+        #thankyou { display: none; text-align: center; font-size: 1.3em; color: #1ba57a; font-weight: 700; }
+        /* Custom option buttons */
+        .option-row { display: flex; gap: 16px; margin-bottom: 8px; justify-content: center; }
+        .option-btn {
+            display: inline-block;
+            min-width: 80px;
+            padding: 0.7em 1.2em;
+            border-radius: 12px;
+            border: 2px solid #dbe4ef;
+            background: rgba(27,165,122,0.05);
+            color: #283046;
+            font-weight: 500;
+            font-size: 1.09em;
+            cursor: pointer;
+            transition: background 0.25s, color 0.25s, border 0.25s, box-shadow 0.25s;
+            margin-bottom: 6px;
+            outline: none;
+            box-shadow: 0 1px 4px 0 rgba(60,72,88,0.06);
+        }
+        .option-btn.selected, .option-btn:active {
+            background: linear-gradient(90deg, #1ba57a 60%, #43e97b 100%);
+            color: #fff;
+            border: 2px solid #1ba57a;
+            box-shadow: 0 2px 12px 0 rgba(27,165,122,0.18);
+        }
+        .option-btn:not(.selected):hover {
+            border: 2px solid #1ba57a;
+            background: #e6f8f1;
+        }
+        .question-block {
+            margin-bottom: 2.2em;
+            padding-bottom: 1.1em;
+            border-bottom: 1px solid #eaeaea;
+        }
+        /* Hide default radio */
+        input[type="radio"] {
+            display: none;
+        }
+        button[type="submit"] {
+            background: linear-gradient(90deg, #1ba57a 60%, #43e97b 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1.1em;
+            font-weight: 700;
+            padding: 0.7em 2.2em;
+            margin-top: 12px;
+            cursor: pointer;
+            box-shadow: 0 2px 8px 0 rgba(27,165,122,0.15);
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        button[type="submit"]:hover {
+            background: linear-gradient(90deg, #14895e 60%, #43e97b 100%);
+            box-shadow: 0 6px 16px 0 rgba(27,165,122,0.15);
+        }
+        .file-upload-group {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            margin: 22px 0 36px 0;
+            justify-content: center;
+        }
+        input[type="file"] {
+            display: none;
+        }
+        .custom-file-label {
+            background: linear-gradient(90deg, #1ba57a 60%, #43e97b 100%);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            font-size: 1em;
+            font-weight: 600;
+            padding: 0.7em 1.6em;
+            cursor: pointer;
+            box-shadow: 0 2px 8px 0 rgba(27,165,122,0.13);
+            transition: background 0.2s, box-shadow 0.2s;
+            outline: none;
+            margin-right: 2px;
+        }
+        .custom-file-label:hover {
+            background: linear-gradient(90deg, #14895e 60%, #43e97b 100%);
+            box-shadow: 0 6px 16px 0 rgba(27,165,122,0.13);
+        }
+        .file-name {
+            font-size: 1em;
+            color: #283046;
+            font-weight: 500;
+            min-width: 120px;
+            text-align: left;
+            opacity: 0.8;
+        }
+        .main-btn {
+            width: 100%;
+            margin-top: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Paper2Podcast</h1>
+    <div id="upload">
+        <form id="uploadForm">
+            <label for="pdf" style="font-size:1.2em; font-weight:600;">Upload your journal paper PDF:</label><br>
+            <div class="file-upload-group">
+                <input type="file" id="pdf" name="pdf" accept="application/pdf" required>
+                <label for="pdf" class="custom-file-label" id="pdfLabel">Choose File</label>
+                <span id="fileName" class="file-name">No file chosen</span>
+            </div>
+            <button type="submit" class="main-btn">Upload & Generate Questions</button>
+        </form>
+    </div>
+    <div id="spinner">
+        <p>Generating questions, please wait...</p>
+        <img src="https://i.imgur.com/llF5iyg.gif" alt="Loading..." width="48">
+    </div>
+    <div id="questions">
+        <form id="questionsForm">
+            <div id="questionsList"></div>
+            <button type="submit">Submit Answers</button>
+        </form>
+    </div>
+    <div id="thankyou">
+        <p>Thank you!</p>
+    </div>
+<script>
+// Modern file input handling
+const pdfInput = document.getElementById('pdf');
+const pdfLabel = document.getElementById('pdfLabel');
+const fileNameSpan = document.getElementById('fileName');
+pdfInput.onchange = function() {
+    if (pdfInput.files && pdfInput.files[0]) {
+        fileNameSpan.textContent = pdfInput.files[0].name;
+        pdfLabel.classList.add('disabled');
+        pdfLabel.style.opacity = 0.6;
+        pdfLabel.style.pointerEvents = 'none';
+    } else {
+        fileNameSpan.textContent = 'No file chosen';
+        pdfLabel.classList.remove('disabled');
+        pdfLabel.style.opacity = 1;
+        pdfLabel.style.pointerEvents = 'auto';
+    }
+};
+
+const uploadDiv = document.getElementById('upload');
+const uploadForm = document.getElementById('uploadForm');
+const spinner = document.getElementById('spinner');
+const questionsDiv = document.getElementById('questions');
+const questionsList = document.getElementById('questionsList');
+const thankyouDiv = document.getElementById('thankyou');
+let questionsData = [];
+let tempTxtFilename = '';
+
+uploadForm.onsubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(uploadForm);
+    uploadDiv.style.display = 'none'; // Hide the entire upload area
+    spinner.style.display = 'block';
+    // Upload PDF
+    const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
+    const uploadJson = await uploadRes.json();
+    if (uploadJson.temp_txt_filename) {
+        tempTxtFilename = uploadJson.temp_txt_filename;
+        // Get questions
+        const questionsRes = await fetch('/api/questions', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ temp_txt_filename: tempTxtFilename })
+        });
+        const questionsJson = await questionsRes.json();
+        spinner.style.display = 'none';
+        if (questionsJson.questions) {
+            questionsData = questionsJson.questions;
+            renderQuestions();
+        } else {
+            questionsList.innerHTML = '<p style="color:red;">Failed to generate questions.</p>';
+            questionsDiv.style.display = 'block';
+        }
+    } else {
+        spinner.style.display = 'none';
+        questionsList.innerHTML = '<p style="color:red;">Upload failed.</p>';
+        questionsDiv.style.display = 'block';
+    }
+};
+
+function renderQuestions() {
+    questionsList.innerHTML = '';
+    questionsData.forEach((q, idx) => {
+        const block = document.createElement('div');
+        block.className = 'question-block';
+        block.innerHTML = `<label><b>${q.q}</b></label>`;
+        // Horizontal row for 3 familiar options, else vertical
+        let rowDiv = document.createElement('div');
+        let isFamiliarity = (q.options.length === 3 && q.options.includes('Yes') && q.options.includes('Meh') && q.options.includes('No'));
+        rowDiv.className = isFamiliarity ? 'option-row' : '';
+        const emojiMap = {
+            'Yes': '🧠 Yep, I know this stuff',
+            'Meh': '🤔 Kinda… sounds familiar',
+            'No': '🆘 Nope, no clue'
+        };
+        q.options.forEach(opt => {
+            const btn = document.createElement('button');
+            btn.type = 'button';
+            btn.className = 'option-btn';
+            btn.textContent = (isFamiliarity && emojiMap[opt]) ? emojiMap[opt] : opt;
+            btn.dataset.qname = `q_${idx}`;
+            btn.dataset.value = opt;
+            btn.onclick = function() {
+                // Deselect others in group
+                document.querySelectorAll(`.option-btn[data-qname='q_${idx}']`).forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                // Set hidden input value
+                let hidden = document.getElementById(`hidden_q_${idx}`);
+                if (!hidden) {
+                    hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = `q_${idx}`;
+                    hidden.id = `hidden_q_${idx}`;
+                    block.appendChild(hidden);
+                }
+                hidden.value = opt;
+            };
+            rowDiv.appendChild(btn);
+        });
+        block.appendChild(rowDiv);
+        questionsList.appendChild(block);
+    });
+    questionsDiv.style.display = 'block';
+}
+
+document.getElementById('questionsForm').onsubmit = async (e) => {
+    e.preventDefault();
+    // Check all questions answered
+    let allAnswered = true;
+    questionsData.forEach((q, idx) => {
+        if (!document.getElementById(`hidden_q_${idx}`) || !document.getElementById(`hidden_q_${idx}`).value) {
+            allAnswered = false;
+        }
+    });
+    if (!allAnswered) {
+        alert('Please answer all questions.');
+        return;
+    }
+    questionsDiv.style.display = 'none';
+    spinner.style.display = 'block';
+    // Gather answers
+    let answers = {};
+    questionsData.forEach((q, idx) => {
+        answers[`q_${idx}`] = document.getElementById(`hidden_q_${idx}`).value;
+    });
+    // Submit answers (send questions too, so server can print Q/A)
+    await fetch('/api/submit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ answers, questions: questionsData })
+    });
+    spinner.style.display = 'none';
+    thankyouDiv.style.display = 'block';
+};
+</script>
+</body>
+</html>
