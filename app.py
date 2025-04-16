@@ -90,13 +90,72 @@ def api_submit():
     print("========================\n")
     # Generate podcast after Q&A
     podcast_text = None
+    audio_url = None
+    transcript = None
     if temp_txt_filename:
         podcast_text = generate_podcast_from_gemini(temp_txt_filename, qa_lines)
         print("\n===== Generated Podcast Script =====\n")
         print(podcast_text)
         print("\n===================================\n")
-    return {'success': True}
+        transcript = podcast_text
+        # Call Sarvam TTS
+        audio_dir = 'static'
+        if not os.path.exists(audio_dir):
+            os.makedirs(audio_dir)
+        audio_path = os.path.join(audio_dir, 'podcast_latest.wav')
+        sarvam_success = text_to_speech_sarvam(
+            api_key=os.environ.get('SARVAM_API_KEY'),
+            text_input=podcast_text[:500],  # Sarvam API supports max 500 chars per input
+            language_code='en-IN',
+            speaker_name='meera',
+            output_filename=audio_path
+        )
+        if sarvam_success:
+            audio_url = '/static/podcast_latest.wav'
+    return {'success': True, 'audio_url': audio_url, 'transcript': transcript}
 
+
+import requests
+import base64
+
+def text_to_speech_sarvam(api_key, text_input, language_code, speaker_name, output_filename="output_audio.wav"):
+    """
+    Converts text to speech using Sarvam AI TTS API and saves the audio.
+    """
+    api_url = "https://api.sarvam.ai/text-to-speech"
+    headers = {
+        "Content-Type": "application/json",
+        "api-subscription-key": api_key
+    }
+    payload = {
+        "inputs": [text_input],
+        "target_language_code": language_code,
+        "speaker": speaker_name,
+        "model": "bulbul:v1",
+        "pitch": 0,
+        "pace": 1.0,
+        "loudness": 1.0,
+        "speech_sample_rate": 16000,
+        "enable_preprocessing": False
+    }
+    try:
+        response = requests.post(api_url, headers=headers, json=payload)
+        response.raise_for_status()
+        response_data = response.json()
+        if "audios" in response_data and response_data["audios"]:
+            audio_base64 = response_data["audios"][0]
+            audio_bytes = base64.b64decode(audio_base64)
+            with open(output_filename, "wb") as audio_file:
+                audio_file.write(audio_bytes)
+            print(f"Audio successfully saved to {output_filename}")
+            return True
+        else:
+            print("Error: 'audios' key not found or empty in response.")
+            print("Response:", response_data)
+            return False
+    except Exception as e:
+        print(f"[Sarvam TTS] API Request failed: {e}")
+        return False
 
 def generate_podcast_from_gemini(temp_txt_filename, qa_lines):
     # Read extracted paper content

@@ -290,13 +290,27 @@ document.getElementById('questionsForm').onsubmit = async (e) => {
     // Show podcast spinner
     spinner.querySelector('p').textContent = 'Generating podcast, please wait...';
     // Submit answers (send questions and temp_txt_filename for podcast generation)
-    await fetch('/api/submit', {
+    const resp = await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ answers, questions: questionsData, temp_txt_filename: tempTxtFilename })
     });
+    const respJson = await resp.json();
     spinner.style.display = 'none';
     spinner.querySelector('p').textContent = 'Generating questions, please wait...'; // reset for next time
+    // Show audio player and transcript if available
+    if (respJson.audio_url && respJson.transcript) {
+        thankyouDiv.innerHTML = `
+            <h2>Your Podcast is Ready!</h2>
+            <audio controls src="${respJson.audio_url}" style="width:100%; margin-bottom:1.2em;"></audio>
+            <div style="background:#f7f7f7; border-radius:10px; padding:1.2em; margin-top:1em;">
+                <b>Transcript:</b><br>
+                <div style="white-space:pre-wrap; font-size:1.06em; color:#283046;">${respJson.transcript}</div>
+            </div>
+        `;
+    } else {
+        thankyouDiv.innerHTML = '<p>Thank you! (Podcast audio unavailable)</p>';
+    }
     thankyouDiv.style.display = 'block';
 };
 </script>
