@@ -201,50 +201,6 @@ def extract_text_from_pdf(filepath):
         print(f"[PDF Extraction Error]: {e}")
         return ''
 
-@app.route('/questions', methods=['GET', 'POST'])
-def ask_questions():
-    if request.method == 'POST':
-        # Store user answers
-        answers = {}
-        for key, value in request.form.items():
-            if key.startswith('q_'):
-                answers[key] = value
-        print('User Answers:', answers)
-        # Get questions from hidden field
-        import ast
-        questions_raw = request.form.get('questions_json', '')
-        try:
-            questions = ast.literal_eval(questions_raw)
-        except Exception:
-            questions = None
-        return render_template('thanks.html', answers=answers, questions=questions)
-    # On GET, get temp filename
-    temp_txt_filename = request.args.get('temp_txt_filename')
-    if not temp_txt_filename:
-        return redirect(url_for('upload_pdf'))
-    temp_txt_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_txt_filename)
-    try:
-        with open(temp_txt_path, 'r', encoding='utf-8') as tf:
-            extracted_text = tf.read()
-    except Exception as e:
-        return f'Could not read extracted text: {e}', 500
-    # Call Gemini
-    gemini_response = get_questions_from_gemini(extracted_text)
-    # Clean Gemini response: remove markdown code block formatting
-    cleaned = gemini_response.strip()
-    if cleaned.startswith('```'):
-        cleaned = cleaned.lstrip('`').lstrip('json').lstrip('\n').strip()
-    if cleaned.endswith('```'):
-        cleaned = cleaned[:cleaned.rfind('```')].strip()
-    try:
-        questions_data = json.loads(cleaned)
-        questions = questions_data.get('questions', [])
-        parse_error = None
-    except Exception as e:
-        questions = None
-        parse_error = f"Error parsing questions: {e}"
-    return render_template('questions.html', questions=questions, extracted_text=extracted_text, gemini_response=gemini_response, parse_error=parse_error)
-
 def get_questions_from_gemini(pdf_text):
     # Prompt Gemini for questions
     request_text = """
@@ -284,16 +240,6 @@ Paper text:
 
     # Show the raw response on the web page for debug
     return response.text
-
-
-
-@app.route('/continue', methods=['POST'])
-def continue_to_questions():
-    # Pass temp filename to questions page via GET
-    temp_txt_filename = request.form.get('temp_txt_filename')
-    if not temp_txt_filename:
-        return redirect(url_for('upload_pdf'))
-    return redirect(url_for('ask_questions', temp_txt_filename=temp_txt_filename))
 
 
 if __name__ == '__main__':
