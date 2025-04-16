@@ -3,3 +3,4 @@ requests
 pdfminer.six
 google-generativeai
 werkzeug
+gunicorn
