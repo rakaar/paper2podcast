@@ -287,13 +287,16 @@ document.getElementById('questionsForm').onsubmit = async (e) => {
     questionsData.forEach((q, idx) => {
         answers[`q_${idx}`] = document.getElementById(`hidden_q_${idx}`).value;
     });
-    // Submit answers (send questions too, so server can print Q/A)
+    // Show podcast spinner
+    spinner.querySelector('p').textContent = 'Generating podcast, please wait...';
+    // Submit answers (send questions and temp_txt_filename for podcast generation)
     await fetch('/api/submit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ answers, questions: questionsData })
+        body: JSON.stringify({ answers, questions: questionsData, temp_txt_filename: tempTxtFilename })
     });
     spinner.style.display = 'none';
+    spinner.querySelector('p').textContent = 'Generating questions, please wait...'; // reset for next time
     thankyouDiv.style.display = 'block';
 };
 </script>

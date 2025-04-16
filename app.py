@@ -73,20 +73,64 @@ def api_submit():
     # Print questions and answers in Q/A format to terminal
     data = request.get_json()
     answers = data.get('answers', {})
-    # To get questions, we need to reconstruct them from the last request
-    # Instead, let the client send the questions array as well (or store in session, but stateless is better)
     questions = data.get('questions', [])
+    temp_txt_filename = data.get('temp_txt_filename')
     print("\n==== User Q&A Session ====")
+    qa_lines = []
     if questions:
         for idx, q in enumerate(questions):
             qtext = q.get('q', f'Question {idx+1}')
             ans = answers.get(f'q_{idx}', '[No answer]')
             print(f"Q: {qtext}\nA: {ans}\n")
+            qa_lines.append(f"Q: {qtext}\nA: {ans}")
     else:
         for k, v in answers.items():
             print(f"{k}: {v}")
+            qa_lines.append(f"{k}: {v}")
     print("========================\n")
+    # Generate podcast after Q&A
+    podcast_text = None
+    if temp_txt_filename:
+        podcast_text = generate_podcast_from_gemini(temp_txt_filename, qa_lines)
+        print("\n===== Generated Podcast Script =====\n")
+        print(podcast_text)
+        print("\n===================================\n")
     return {'success': True}
+
+
+def generate_podcast_from_gemini(temp_txt_filename, qa_lines):
+    # Read extracted paper content
+    upload_folder = app.config['UPLOAD_FOLDER']
+    temp_txt_path = os.path.join(upload_folder, temp_txt_filename)
+    try:
+        with open(temp_txt_path, 'r', encoding='utf-8') as tf:
+            paper_content = tf.read()
+    except Exception as e:
+        print(f"[ERROR] Could not read extracted text: {e}")
+        return None
+    prompt = f"""
+You are an expert science communicator and podcast creator.
+
+Your task: Generate a technical podcast script (length: less than 5 minutes) tailored to the user's background and needs, based on the provided journal paper.
+
+===== Paper Content =====
+{paper_content}
+
+===== User Background Q & A =====
+{chr(10).join(qa_lines)}
+
+===== Instructions =====
+- This is a single-person podcast (monologue).
+- Use the user's background to decide the level of technical detail and which concepts to explain.
+- The podcast should be engaging, accurate, and accessible for the user.
+- Focus on the main findings, methods, and significance of the paper.
+- Do not exceed 5 minutes in length if spoken aloud.
+- Format the output as a podcast script ready to be read or recorded.
+- Please format the response as plain speech only, without any stage directions, sound cues, or labels like "Host" or "Outro Music," as the content will be directly fed into a text-to-speech (TTS) system
+"""
+    model = genai.GenerativeModel(MODEL_ID)
+    response = model.generate_content(prompt)
+    return response.text
 
 
 def extract_text_from_pdf(filepath):
