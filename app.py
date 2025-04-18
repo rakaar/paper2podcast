@@ -1,7 +1,7 @@
 import os
 from flask import Flask, request, render_template, redirect, url_for
 from werkzeug.utils import secure_filename
-from pdfminer.high_level import extract_text as pdfminer_extract_text
+import fitz  # PyMuPDF
 import json
 import google.generativeai as genai
 
@@ -35,7 +35,8 @@ def api_upload():
     file.save(filepath)
     # Extract text
     text = extract_text_from_pdf(filepath)
-    # Store in temp file
+    # Print first and last 10 lines (already done in extract_text_from_pdf)
+    # Store in temp file for Gemini/question flow
     temp_id = str(uuid.uuid4())
     temp_txt_filename = f"extracted_{temp_id}.txt"
     temp_txt_path = os.path.join(app.config['UPLOAD_FOLDER'], temp_txt_filename)
@@ -56,15 +57,22 @@ def api_questions():
         return {'error': f'Could not read extracted text: {e}'}, 500
     gemini_response = get_questions_from_gemini(extracted_text)
     # Clean Gemini response: remove markdown code block formatting
+    import re
     cleaned = gemini_response.strip()
-    if cleaned.startswith('```'):
-        cleaned = cleaned.lstrip('`').lstrip('json').lstrip('\n').strip()
-    if cleaned.endswith('```'):
-        cleaned = cleaned[:cleaned.rfind('```')].strip()
+    # Try to extract JSON block from Markdown code block
+    codeblock_match = re.search(r"```(?:json)?\s*([\s\S]+?)\s*```", cleaned)
+    if codeblock_match:
+        cleaned = codeblock_match.group(1).strip()
+    # Fallback: try to find the first JSON object in the text
+    else:
+        json_match = re.search(r'\{[\s\S]+\}', cleaned)
+        if json_match:
+            cleaned = json_match.group(0)
     try:
         questions_data = json.loads(cleaned)
         questions = questions_data.get('questions', [])
     except Exception as e:
+        print(f"[ERROR] Failed to parse Gemini questions JSON.\nRaw response: {gemini_response}\nCleaned: {cleaned}\nError: {e}")
         return {'error': f'Error parsing questions: {e}', 'raw': gemini_response}, 500
     return {'questions': questions}
 
@@ -192,13 +200,30 @@ Your task: Generate a technical podcast script (length: less than 5 minutes) tai
     return response.text
 
 
+import sys
+
 def extract_text_from_pdf(filepath):
     try:
-        text = pdfminer_extract_text(filepath)
+        doc = fitz.open(filepath)
+        text = "\n".join(page.get_text() for page in doc)
+        doc.close()
+        if not text.strip():
+            print("[PDF Extraction Warning]: No text could be extracted from the PDF.")
+            sys.stdout.flush()
+            return ''
+        lines = text.splitlines()
+        first_10 = '\n'.join(lines[:10])
+        last_10 = '\n'.join(lines[-10:]) if len(lines) > 10 else ''
+        print("[Extracted PDF Text - First 10 lines]:\n", first_10)
+        print("[Extracted PDF Text - Last 10 lines]:\n", last_10)
         print("[Extracted PDF Text]:\n", text[:1000], "...\n[truncated]")
+        sys.stdout.flush()
         return text
     except Exception as e:
+        import traceback
         print(f"[PDF Extraction Error]: {e}")
+        traceback.print_exc()
+        sys.stdout.flush()
         return ''
 
 def get_questions_from_gemini(pdf_text):

@@ -1,6 +1,6 @@
 Flask
 requests
-pdfminer.six
+PyMuPDF
 google-generativeai
 werkzeug
 gunicorn
