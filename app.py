@@ -133,18 +133,40 @@ def api_submit():
         if not os.path.exists(audio_dir):
             os.makedirs(audio_dir)
         chunked_texts = split_text_into_chunks(podcast_text, max_chars=450)
-        audio_chunk_paths = []
-        for idx, chunk in enumerate(chunked_texts):
-            chunk_path = os.path.join(audio_dir, f'podcast_part_{idx+1}.wav')
-            sarvam_success = text_to_speech_sarvam(
-                api_key=os.environ.get('SARVAM_API_KEY'),
-                text_input=chunk,
-                language_code='en-IN',
-                speaker_name='meera',
-                output_filename=chunk_path
-            )
-            if sarvam_success:
-                audio_chunk_paths.append(chunk_path)
+        import concurrent.futures
+        import time
+        
+        def tts_with_retry(chunk, chunk_path, max_retries=3):
+            for attempt in range(1, max_retries+1):
+                success = text_to_speech_sarvam(
+                    api_key=os.environ.get('SARVAM_API_KEY'),
+                    text_input=chunk,
+                    language_code='en-IN',
+                    speaker_name='meera',
+                    output_filename=chunk_path
+                )
+                if success:
+                    print(f"[TTS] Success for {chunk_path} on attempt {attempt}")
+                    return chunk_path
+                else:
+                    print(f"[TTS] Failed for {chunk_path} on attempt {attempt}")
+                    time.sleep(1)
+            print(f"[TTS] Giving up on {chunk_path} after {max_retries} attempts.")
+            return None
+
+        audio_chunk_paths = [None] * len(chunked_texts)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future_to_index = {
+                executor.submit(tts_with_retry, chunk, os.path.join(audio_dir, f'podcast_part_{idx+1}.wav')): idx
+                for idx, chunk in enumerate(chunked_texts)
+            }
+            for future in concurrent.futures.as_completed(future_to_index):
+                idx = future_to_index[future]
+                result = future.result()
+                if result is not None:
+                    audio_chunk_paths[idx] = result
+        audio_chunk_paths = [p for p in audio_chunk_paths if p is not None]
+
         # Concatenate all .wav files
         final_audio_path = os.path.join(audio_dir, 'podcast_latest.wav')
         if audio_chunk_paths:
