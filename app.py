@@ -142,8 +142,10 @@ def api_submit():
                     api_key=os.environ.get('SARVAM_API_KEY'),
                     text_input=chunk,
                     language_code='en-IN',
-                    speaker_name='meera',
-                    output_filename=chunk_path
+                    speaker_name='maitreyi',  # more natural
+                    output_filename=chunk_path,
+                    pace=1.1,  # slightly faster
+                    enable_preprocessing=True  # more natural
                 )
                 if success:
                     print(f"[TTS] Success for {chunk_path} on attempt {attempt}")
@@ -186,7 +188,7 @@ def api_submit():
 import requests
 import base64
 
-def text_to_speech_sarvam(api_key, text_input, language_code, speaker_name, output_filename="output_audio.wav"):
+def text_to_speech_sarvam(api_key, text_input, language_code, speaker_name='maitreyi', output_filename="output_audio.wav", pace=1.1, enable_preprocessing=True):
     """
     Converts text to speech using Sarvam AI TTS API and saves the audio.
     """
@@ -201,10 +203,10 @@ def text_to_speech_sarvam(api_key, text_input, language_code, speaker_name, outp
         "speaker": speaker_name,
         "model": "bulbul:v1",
         "pitch": 0,
-        "pace": 1.0,
+        "pace": pace,
         "loudness": 1.0,
         "speech_sample_rate": 16000,
-        "enable_preprocessing": False
+        "enable_preprocessing": enable_preprocessing
     }
     try:
         response = requests.post(api_url, headers=headers, json=payload)
