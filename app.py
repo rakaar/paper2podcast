@@ -157,7 +157,7 @@ def api_submit():
             return None
 
         audio_chunk_paths = [None] * len(chunked_texts)
-        with concurrent.futures.ThreadPoolExecutor() as executor:
+        with concurrent.futures.ThreadPoolExecutor(max_workers=2) as executor:
             future_to_index = {
                 executor.submit(tts_with_retry, chunk, os.path.join(audio_dir, f'podcast_part_{idx+1}.wav')): idx
                 for idx, chunk in enumerate(chunked_texts)
