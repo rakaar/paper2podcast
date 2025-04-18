@@ -19,6 +19,28 @@ MODEL_ID = "gemini-2.5-pro-exp-03-25"
 
 import uuid
 
+import re
+import wave
+
+def split_text_into_chunks(text, max_chars=450):
+    # Split text into sentences
+    sentences = re.split(r'(?<=[.!?]) +', text)
+    chunks = []
+    current = ''
+    for sent in sentences:
+        if len(current) + len(sent) + 1 > max_chars:
+            if current:
+                chunks.append(current.strip())
+            current = sent
+        else:
+            if current:
+                current += ' '
+            current += sent
+    if current:
+        chunks.append(current.strip())
+    return chunks
+
+
 @app.route('/', methods=['GET'])
 def index():
     return render_template('singlepage.html')
@@ -106,22 +128,38 @@ def api_submit():
         print(podcast_text)
         print("\n===================================\n")
         transcript = podcast_text
-        # Call Sarvam TTS
+        # Call Sarvam TTS in chunks
         audio_dir = 'static'
         if not os.path.exists(audio_dir):
             os.makedirs(audio_dir)
-        audio_path = os.path.join(audio_dir, 'podcast_latest.wav')
-        sarvam_success = text_to_speech_sarvam(
-            api_key=os.environ.get('SARVAM_API_KEY'),
-            text_input=podcast_text[:500],  # Sarvam API supports max 500 chars per input
-            language_code='en-IN',
-            speaker_name='meera',
-            output_filename=audio_path
-        )
-        if sarvam_success:
+        chunked_texts = split_text_into_chunks(podcast_text, max_chars=450)
+        audio_chunk_paths = []
+        for idx, chunk in enumerate(chunked_texts):
+            chunk_path = os.path.join(audio_dir, f'podcast_part_{idx+1}.wav')
+            sarvam_success = text_to_speech_sarvam(
+                api_key=os.environ.get('SARVAM_API_KEY'),
+                text_input=chunk,
+                language_code='en-IN',
+                speaker_name='meera',
+                output_filename=chunk_path
+            )
+            if sarvam_success:
+                audio_chunk_paths.append(chunk_path)
+        # Concatenate all .wav files
+        final_audio_path = os.path.join(audio_dir, 'podcast_latest.wav')
+        if audio_chunk_paths:
+            with wave.open(final_audio_path, 'wb') as outfile:
+                # Use params from first file
+                with wave.open(audio_chunk_paths[0], 'rb') as infile:
+                    outfile.setparams(infile.getparams())
+                    outfile.writeframes(infile.readframes(infile.getnframes()))
+                for chunk_path in audio_chunk_paths[1:]:
+                    with wave.open(chunk_path, 'rb') as infile:
+                        outfile.writeframes(infile.readframes(infile.getnframes()))
             audio_url = '/static/podcast_latest.wav'
+        else:
+            audio_url = None
     return {'success': True, 'audio_url': audio_url, 'transcript': transcript}
-
 
 import requests
 import base64
